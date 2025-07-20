@@ -7,7 +7,9 @@ Event-driven system for processing vendor orders asynchronously and aggregate ve
 ### Prerequisites
 - Docker & Docker Compose installed
 
-Build and run the app:
+### Steps
+1. Go to base directory ```producer-consumer```
+2. Build and run the app:
 ```bash
 docker-compose up --build
 ```

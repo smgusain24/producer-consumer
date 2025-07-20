@@ -3,6 +3,8 @@ version: "3.9"
 services:
   app:
     build: .
+    env_file:
+      - .env
     container_name: vendor-app
     ports:
       - "8000:8000"
@@ -12,10 +14,11 @@ services:
       - ./app/database:/app/app/database
     environment:
       - REDIS_URL=redis://redis:6379
+      - API_TOKEN=${API_TOKEN}
+
 
   redis:
     image: redis:7
     container_name: redis
     ports:
       - "6380:6379"
-

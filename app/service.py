@@ -7,7 +7,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 
 import redis.asyncio as redis
-from fastapi import Depends
+from fastapi import Depends, Header
 from fastapi.requests import Request
 from sqlalchemy.orm import Session
 from starlette.responses import JSONResponse
@@ -26,6 +26,8 @@ STREAM_NAME = "EVENT"
 STREAM_COUNT = 1
 STREAM_BLOCK = 5000
 
+API_TOKEN = os.getenv("API_TOKEN", "074e35bc-0e9c-4ce4-a960-3eeafa3bb30c")
+
 
 def flatten_object(obj):
     return {
@@ -34,7 +36,15 @@ def flatten_object(obj):
     }
 
 
-async def submit_event(request: Request):
+def verify_token(x_api_key: str = Header(..., alias="X-API-KEY")):
+    if x_api_key != API_TOKEN:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or missing token",
+        )
+
+
+async def submit_event(request: Request,  _: None = Depends(verify_token)):
     """
         Producer: Publishes incoming event to message queue.
     """
@@ -58,7 +68,7 @@ async def submit_event(request: Request):
         return {"status": "failure", "_id": None}
 
 
-async def get_vendor_metrics(request: Request, db: Session = Depends(get_db)):
+async def get_vendor_metrics(request: Request, db: Session = Depends(get_db), _: None = Depends(verify_token)):
     """
         Get vendor metrics
     """
@@ -76,7 +86,6 @@ async def get_vendor_metrics(request: Request, db: Session = Depends(get_db)):
         last_7_days_volume = defaultdict(int)
 
         for order in orders:
-            print(order)
             total_revenue += order.total_amount
 
             # If high value order

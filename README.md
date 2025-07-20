@@ -19,6 +19,7 @@ docker-compose up --build
 - Persistence of data in SQLite with SQLAlchemy
 - Vendor metrics
 - Token-based authentication for APIs
+- Swagger Documentation: Accessible using ```http://localhost:8000/docs ```
 
 
 ## Tech Stack

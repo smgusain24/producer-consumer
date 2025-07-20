@@ -7,7 +7,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 
 import redis.asyncio as redis
-from fastapi import Depends, Header
+from fastapi import Depends, Header, Body
 from fastapi.requests import Request
 from sqlalchemy.orm import Session
 from starlette.responses import JSONResponse
@@ -47,31 +47,34 @@ def verify_token(x_api_key: str = Header(..., alias="X-API-KEY")):
         )
 
 
-async def submit_event(request: Request, _: None = Depends(verify_token)):
+async def submit_event(
+    request_body: OrderRequest = Body(...),
+    _: None = Depends(verify_token)
+):
     """
     Producer: Publishes incoming event to message queue.
     """
     try:
-        request_json = await request.json()
-        logging.info(f"Request Payload:\n{request_json}")
-
-        task_request = OrderRequest(**request_json)
-        task = task_request.model_dump()
+        task = request_body.model_dump()
         task_id = str(uuid.uuid4())
         task.update({"taskID": task_id})
         logging.info(f"TASK: {task}")
 
-        # Flatten task because redis stream does not support nested objects
         flatten_task = flatten_object(task)
         _id = await redis_client.xadd(name=STREAM_NAME, fields=flatten_task)
+
         return {"status": "success", "_id": _id}
     except Exception as e:
         logging.error(e, exc_info=True)
         return {"status": "failure", "_id": None}
 
 
+
+
 async def get_vendor_metrics(
-    request: Request, db: Session = Depends(get_db), _: None = Depends(verify_token)
+    request: Request,
+    db: Session = Depends(get_db),
+    _: None = Depends(verify_token)
 ):
     """
     Get vendor metrics
@@ -183,7 +186,9 @@ async def consume_event():
 
 
 async def get_vendor_chart(
-    request: Request, db: Session = Depends(get_db), _: None = Depends(verify_token)
+    request: Request,
+    db: Session = Depends(get_db),
+    _: None = Depends(verify_token)
 ):
     """
     API to generate order volume/revenue trend plot

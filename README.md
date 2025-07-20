@@ -19,6 +19,7 @@ docker-compose up --build
 - Persistence of data in SQLite with SQLAlchemy
 - Vendor metrics
 - Token-based authentication for APIs
+- Generate Vendor-Revenue plot using Matplotlib
 
 
 ## Tech Stack
@@ -29,3 +30,4 @@ docker-compose up --build
 - **ORM:** SQLAlchemy
 - **Auth:** Simple token-based auth
 - **Container:** Docker + Docker Compose
+- **Data Visualisation:** Matplotlib

@@ -17,6 +17,9 @@ from app.database.db import SessionLocal
 from app.database.models import Order, OrderItem
 from app.models import OrderRequest
 
+import matplotlib.pyplot as plt
+import base64
+import io
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
 
@@ -44,14 +47,13 @@ def verify_token(x_api_key: str = Header(..., alias="X-API-KEY")):
         )
 
 
-async def submit_event(request: Request,  _: None = Depends(verify_token)):
+async def submit_event(request: Request, _: None = Depends(verify_token)):
     """
-        Producer: Publishes incoming event to message queue.
+    Producer: Publishes incoming event to message queue.
     """
     try:
         request_json = await request.json()
         logging.info(f"Request Payload:\n{request_json}")
-
 
         task_request = OrderRequest(**request_json)
         task = task_request.model_dump()
@@ -68,9 +70,11 @@ async def submit_event(request: Request,  _: None = Depends(verify_token)):
         return {"status": "failure", "_id": None}
 
 
-async def get_vendor_metrics(request: Request, db: Session = Depends(get_db), _: None = Depends(verify_token)):
+async def get_vendor_metrics(
+    request: Request, db: Session = Depends(get_db), _: None = Depends(verify_token)
+):
     """
-        Get vendor metrics
+    Get vendor metrics
     """
     try:
         vendor_id = request.query_params.get("vendor_id")
@@ -109,7 +113,7 @@ async def get_vendor_metrics(request: Request, db: Session = Depends(get_db), _:
             "total_orders": total_orders,
             "total_revenue": total_revenue,
             "high_value_orders": high_value_orders,
-            "last_7_days_volume": last_week_volume
+            "last_7_days_volume": last_week_volume,
         }
 
     except Exception as e:
@@ -119,7 +123,7 @@ async def get_vendor_metrics(request: Request, db: Session = Depends(get_db), _:
 
 def process_data(data):
     """
-        Process total amount and high value flag.
+    Process total amount and high value flag.
     """
 
     db = SessionLocal()
@@ -176,3 +180,50 @@ async def consume_event():
             await asyncio.sleep(0.1)
     except Exception as e:
         logging.error(e, exc_info=True)
+
+
+async def get_vendor_chart(
+    request: Request, db: Session = Depends(get_db), _: None = Depends(verify_token)
+):
+    """
+    API to generate order volume/revenue trend plot
+    """
+    vendor_id = request.query_params.get("vendor_id")
+
+    # Get order for vendor_id
+    orders = db.query(Order).filter(Order.vendor_id == vendor_id).all()
+    daily_totals = defaultdict(float)
+
+    for order in orders:
+        date = order.timestamp.date().isoformat()
+        daily_totals[date] += order.total_amount or 0
+
+    if not daily_totals:
+        return {"error": "No data found for vendor"}
+
+    # Sort by date for plotting
+    sorted_dates = sorted(daily_totals.items())
+    dates = [d for d, _ in sorted_dates]
+    revenues = [r for _, r in sorted_dates]
+
+    # Plot
+    fig, ax = plt.subplots()
+    ax.plot(dates, revenues, marker="o")
+    ax.set_title(f"Revenue Trend for {vendor_id}")
+    ax.set_xlabel("Date")
+    ax.set_ylabel("Revenue")
+    plt.xticks(rotation=45)
+
+    # Save to memory buffer
+    buf = io.BytesIO()
+    plt.tight_layout()
+    plt.savefig(buf, format="png")
+
+    # Seek buffer hear
+    buf.seek(0)
+
+    # Encode image to base64
+    img_base64 = base64.b64encode(buf.read()).decode("utf-8")
+    plt.close(fig)
+
+    return {"vendor_id": vendor_id, "chart_base64": img_base64}

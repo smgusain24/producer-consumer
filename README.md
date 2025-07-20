@@ -19,6 +19,7 @@ docker-compose up --build
 - Persistence of data in SQLite with SQLAlchemy
 - Vendor metrics
 - Token-based authentication for APIs
+- Generate Vendor-Revenue plot using Matplotlib
 - Swagger Documentation: Accessible using ```http://localhost:8000/docs ```
 
 
